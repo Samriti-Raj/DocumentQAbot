@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Q&A Bot</title>
+    <!-- Include Toastify CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #333;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .upload-section, .question-section {
+            margin-bottom: 20px;
+        }
+        .upload-section input[type="file"], .question-section input[type="text"] {
+            padding: 10px;
+            width: 100%;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 12px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.2);
+        }
+        button:active {
+            background-color: #388e3c;
+            transform: translateY(0);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        #uploadStatus, #answerOutput {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8d7da;
+            color: #721c24;
+            border-radius: 4px;
+            font-size: 16px;
+            display: none;
+        }
+        #uploadStatus.success, #answerOutput.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        #uploadStatus.error, #answerOutput.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .scrollable-response {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        @media (min-width: 768px) {
+            .container {
+                width: 80%;
+            }
+        }
+    </style>
+    <!-- Include Toastify JS -->
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById("fileInput");
+
+            if (fileInput.files.length === 0) {
+                document.getElementById("uploadStatus").innerText = "Please select a file.";
+                document.getElementById("uploadStatus").classList.add("error");
+                document.getElementById("uploadStatus").style.display = "block";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            try {
+                const response = await fetch("http://localhost:5000/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const result = await response.json();
+                document.getElementById("uploadStatus").innerText = result.message || result.error;
+                document.getElementById("uploadStatus").classList.add(result.error ? "error" : "success");
+                document.getElementById("uploadStatus").style.display = "block";
+
+                // Display success toast when file is uploaded successfully
+                if (response.ok) {
+                    Toastify({
+                        text: "File uploaded successfully!",
+                        duration: 3000,
+                        close: true,
+                        gravity: "top", // Position top or bottom
+                        position: "right", // Position left or right
+                        backgroundColor: "#4CAF50",
+                        stopOnFocus: true
+                    }).showToast();
+                }
+
+            } catch (error) {
+                document.getElementById("uploadStatus").innerText = "Error uploading document.";
+                document.getElementById("uploadStatus").classList.add("error");
+                document.getElementById("uploadStatus").style.display = "block";
+                console.error("Error uploading document:", error);
+            }
+        }
+
+        async function askQuestion() {
+            const question = document.getElementById("questionInput").value;
+
+            if (!question) {
+                document.getElementById("answerOutput").innerText = "Please enter a question.";
+                document.getElementById("answerOutput").classList.add("error");
+                document.getElementById("answerOutput").style.display = "block";
+                return;
+            }
+
+            try {
+                const response = await fetch("http://localhost:5000/ask", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question })
+                });
+
+                const result = await response.json();
+                console.log("Backend Response:", result);  // Log the response for debugging
+
+                if (result.answer) {
+                    document.getElementById("answerOutput").innerText = result.answer;
+                    document.getElementById("answerOutput").classList.add("success");
+                } else if (result.error) {
+                    document.getElementById("answerOutput").innerText = `Error: ${result.error}`;
+                    document.getElementById("answerOutput").classList.add("error");
+                } else {
+                    document.getElementById("answerOutput").innerText = "No answer found or an error occurred.";
+                    document.getElementById("answerOutput").classList.add("error");
+                }
+                document.getElementById("answerOutput").style.display = "block";
+            } catch (error) {
+                document.getElementById("answerOutput").innerText = "Error asking question.";
+                document.getElementById("answerOutput").classList.add("error");
+                document.getElementById("answerOutput").style.display = "block";
+                console.error("Error asking question:", error);  // Log any errors
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Document Q&A Bot</h1>
+    <div class="container">
+        <div class="upload-section">
+            <h2>Upload Document</h2>
+            <input type="file" id="fileInput">
+            <button onclick="uploadFile()">Upload Document</button>
+            <p id="uploadStatus"></p>
+        </div>
+
+        <div class="question-section">
+            <h2>Ask a Question</h2>
+            <input type="text" id="questionInput" placeholder="Enter your question">
+            <button onclick="askQuestion()">Ask</button>
+            <div id="answerOutput" class="scrollable-response"></div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.js"></script>
+</body>
+</html>
+
+
+
